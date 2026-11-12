@@ -9,6 +9,10 @@ data "google_storage_bucket" "models" {
   name = "${var.project_id}-models"
 }
 
+data "google_project" "current" {
+  project_id = var.project_id
+}
+
 # Tranche de l'équipe : à écrire. Chaque nom commence par "${var.team}-".
 
 # 1. Compte de service d'exécution : google_service_account
@@ -42,7 +46,7 @@ resource "google_cloud_run_v2_service" "api" {
 
   template {
     service_account                  = google_service_account.run.email
-    max_instance_request_concurrency = 80
+    max_instance_request_concurrency = 4
 
     scaling {
       min_instance_count = 0

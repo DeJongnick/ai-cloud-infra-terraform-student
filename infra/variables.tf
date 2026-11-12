@@ -13,8 +13,8 @@ variable "team" {
   type        = string
 
   validation {
-    condition     = can(regex("^team[0-9]$", var.team))
-    error_message = "L'identifiant d'équipe est de la forme team1, team2, team3 ou team4."
+    condition     = can(regex("^team(-?[a-z0-9]+)+$", var.team)) && length(var.team) <= 20
+    error_message = "L'identifiant d'équipe est celui donné par l'enseignant : team1, team-really-cool, team3 ou team-ghv."
   }
 }
 
@@ -26,4 +26,10 @@ variable "image" {
 variable "invokers" {
   description = "Identités autorisées à appeler le service, par exemple user:prenom@albertschool.com."
   type        = list(string)
+}
+
+variable "tx_topic" {
+  description = "Topic des transactions, identifiant complet projects/<projet>/topics/<topic>. Le changer remplace l'abonnement."
+  type        = string
+  default     = "projects/cymbal-fraudfinder/topics/ff-tx"
 }

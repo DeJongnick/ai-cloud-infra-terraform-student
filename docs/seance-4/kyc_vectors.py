@@ -11,6 +11,8 @@ Le jeton d'appel est lu dans la variable d'environnement TOKEN (gcloud auth prin
 from __future__ import annotations
 
 import argparse
+import gzip
+import json
 import os
 import time
 
@@ -53,7 +55,7 @@ def load(a) -> None:
         json={
             "vectors": {"size": emb.shape[1], "distance": "Cosine"},
             "hnsw_config": {"m": a.m, "ef_construct": a.ef_construct},
-            "optimizers_config": {"default_segment_number": 1, "indexing_threshold": 1000},
+            "optimizers_config": {"default_segment_number": 1, "indexing_threshold": 0},
         },
     )
     start = time.perf_counter()
@@ -61,21 +63,39 @@ def load(a) -> None:
         hi = min(lo + a.batch, len(emb))
         batch = {
             "ids": list(range(lo, hi)),
-            "vectors": emb[lo:hi].tolist(),
+            "vectors": np.round(emb[lo:hi].astype(float), 4).tolist(),
             "payloads": payloads[lo:hi],
         }
-        call(http, "PUT", f"/collections/{COLLECTION}/points?wait=true", json={"batch": batch})
+        call(
+            http,
+            "PUT",
+            f"/collections/{COLLECTION}/points?wait=true",
+            content=gzip.compress(json.dumps({"batch": batch}).encode()),
+            headers={"Content-Type": "application/json", "Content-Encoding": "gzip"},
+        )
         print(f"\r{hi:,} / {len(emb):,} documents envoyés", end="", flush=True)
     print(f" en {time.perf_counter() - start:.0f} s")
+    call(
+        http,
+        "PATCH",
+        f"/collections/{COLLECTION}",
+        json={"optimizers_config": {"indexing_threshold": 1000}},
+    )
     while True:
         info = call(http, "GET", f"/collections/{COLLECTION}")["result"]
         indexed = info.get("indexed_vectors_count") or 0
-        print(f"\rindex HNSW : {indexed:,} vecteurs, état {info['status']}   ", end="", flush=True)
+        print(
+            f"\rindex HNSW : {indexed:,} vecteurs, état {info['status']}   ",
+            end="",
+            flush=True,
+        )
         if info["status"] == "green" and indexed >= 0.95 * len(emb):
             break
         time.sleep(2)
     elapsed = time.perf_counter() - start
-    print(f"\nindex construit en {elapsed:.0f} s (m={a.m}, ef_construct={a.ef_construct})")
+    print(
+        f"\nindex construit en {elapsed:.0f} s (m={a.m}, ef_construct={a.ef_construct})"
+    )
 
 
 def search(http: httpx.Client, vector, params: dict) -> tuple[list[int], float]:
@@ -86,24 +106,38 @@ def search(http: httpx.Client, vector, params: dict) -> tuple[list[int], float]:
 
 def measure(a) -> None:
     emb = vectors(a.file)
-    queries = emb[np.random.default_rng(SEED).choice(len(emb), QUERIES, replace=False)].tolist()
+    queries = emb[
+        np.random.default_rng(SEED).choice(len(emb), QUERIES, replace=False)
+    ].tolist()
     http = client(a.url)
-    exact, exact_ms = zip(*(search(http, q, {"exact": True}) for q in queries), strict=True)
+    exact, exact_ms = zip(
+        *(search(http, q, {"exact": True}) for q in queries), strict=True
+    )
     print(f"{QUERIES} requêtes, {TOP_K} voisins, temps mesuré par le serveur\n")
     print("| ef | rappel@10 | p50 (ms) | p95 (ms) |")
     print("| --- | --- | --- | --- |")
     row = "| {} | {:.3f} | {:.2f} | {:.2f} |"
-    print(row.format("exact", 1.0, np.percentile(exact_ms, 50), np.percentile(exact_ms, 95)))
+    print(
+        row.format(
+            "exact", 1.0, np.percentile(exact_ms, 50), np.percentile(exact_ms, 95)
+        )
+    )
     for ef in a.ef:
-        found, ms = zip(*(search(http, q, {"hnsw_ef": ef}) for q in queries), strict=True)
-        recall = np.mean([len(set(f) & set(e)) / TOP_K for f, e in zip(found, exact, strict=True)])
+        found, ms = zip(
+            *(search(http, q, {"hnsw_ef": ef}) for q in queries), strict=True
+        )
+        recall = np.mean(
+            [len(set(f) & set(e)) / TOP_K for f, e in zip(found, exact, strict=True)]
+        )
         print(row.format(ef, recall, np.percentile(ms, 50), np.percentile(ms, 95)))
 
 
 def neighbours(a) -> None:
     http = client(a.url)
     body = {"ids": [a.doc_id], "with_vector": True, "with_payload": True}
-    doc = call(http, "POST", f"/collections/{COLLECTION}/points", json=body)["result"][0]
+    doc = call(http, "POST", f"/collections/{COLLECTION}/points", json=body)["result"][
+        0
+    ]
     print(
         f"document {a.doc_id}, client {doc['payload']['customer_id']} : {doc['payload']['text']}\n"
     )
@@ -128,7 +162,9 @@ def main(argv=None):
             p.add_argument("--ef-construct", type=int, default=100)
             p.add_argument("--batch", type=int, default=1000)
         if name == "measure":
-            p.add_argument("--ef", type=int, nargs="+", default=[4, 8, 16, 32, 64, 128, 256])
+            p.add_argument(
+                "--ef", type=int, nargs="+", default=[4, 8, 16, 32, 64, 128, 256]
+            )
         if name == "neighbours":
             p.add_argument("--doc-id", type=int, required=True)
     a = ap.parse_args(argv)

@@ -161,7 +161,8 @@ et `amount_sum` = 100,79. Cette ligne n'existe dans aucun fichier : elle vient d
 
 **Questions :**
 
-1. Retirez le `GROUP BY TX_ID` de `flux` et relancez la requête du point 4. Que devient `n` ?
+1. Lisez `tx_history` directement dans `tx`, sans passer par `flux`, et relancez la requête du
+   point 4. Que devient `n` ?
 2. Une transaction du 2 octobre à 9 h ne doit lire que les jours jusqu'au 1er octobre. Où cette
    règle est-elle appliquée : dans votre table, ou au moment de la lecture ? Que se passerait-il si
    le compteur du jour même était lu ?
@@ -231,8 +232,8 @@ L'image `ref-fraud-api:td4` contient le service de la séance 3 avec une variabl
 6. `feature_source = "bigquery"`, `terraform apply`. Refaites les points 4 et 5 en remplaçant
    `parquet` par `bigquery` dans le filtre. Regardez aussi les messages non acquittés de
    `team1-tx-push` : le service suit-il encore le débit ?
-7. Copiez vos compteurs dans Firestore, puis `feature_source = "firestore"`, `terraform apply`, et
-   refaites les points 4 et 5 :
+7. Copiez vos compteurs dans Firestore (environ trois minutes), puis
+   `feature_source = "firestore"`, `terraform apply`, et refaites les points 4 et 5 :
 
    ```bash
    gcloud auth application-default login   # une fois, avec votre compte de l'école
@@ -250,7 +251,8 @@ L'image `ref-fraud-api:td4` contient le service de la séance 3 avec une variabl
 2. `parquet` est la lecture la plus rapide. Que perd-on en la gardant, avec plusieurs instances et un
    flux qui continue ?
 3. BigQuery contient les bonnes données. Pourquoi ne pas le lire à chaque transaction ? Appuyez-vous
-   sur votre p50 et sur la courbe des messages non acquittés.
+   sur votre p50 : combien de transactions par seconde une instance traite-t-elle avec cette
+   lecture, et que se passerait-il au palier de 1 000 messages/s de la séance 3 ?
 4. Les documents Firestore datent de votre dernière copie. À quelle fréquence faudrait-il la
    relancer, et qui s'en chargerait dans un vrai système ?
 
@@ -299,7 +301,8 @@ Le **rappel@10** est la part des 10 vrais plus proches voisins que l'index retro
    gcloud storage cp gs://advanced-cloud-ai-models/data/kyc_embeddings.parquet .
    ```
 
-2. Chargez les documents et construisez l'index avec `m = 16`, puis mesurez :
+2. Chargez les documents et construisez l'index avec `m = 16` (trois à quatre minutes), puis
+   mesurez :
 
    ```bash
    $RUN load --url $VURL --m 16
@@ -329,7 +332,7 @@ présenté le même bulletin de paie que le client `0018478647296750`.
 
 1. Pour `m = 4`, que gagne-t-on et que perd-on en passant `ef` de 4 à 256 ? Et en passant de `m = 4`
    à `m = 16` à `ef` égal ?
-2. La recherche exacte prend environ une milliseconde sur 49 394 documents. À partir de quel volume
+2. La recherche exacte prend environ dix millisecondes sur 49 394 documents. À partir de quel volume
    l'index devient-il nécessaire ? Appuyez-vous sur le fait que la recherche exacte lit tous les
    vecteurs.
 3. Un rappel de 0,95 signifie qu'un voisin sur vingt est manqué. Est-ce acceptable pour retrouver un

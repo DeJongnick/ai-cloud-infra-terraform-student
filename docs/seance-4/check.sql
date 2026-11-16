@@ -2,9 +2,9 @@
 -- service lit aujourd'hui dans les fichiers parquet. Attendu : 0 et 0.
 -- Remplacez team1 par le nom de votre dataset.
 SELECT 'client' AS compteurs, COUNT(*) AS lignes_differentes FROM (
-  SELECT customer_id, day, n, amount_sum FROM `team1.customer_daily` WHERE day <= '2026-09-30'
+  SELECT customer_id, day, n, ROUND(amount_sum, 2) AS amount_sum FROM `team1.customer_daily` WHERE day <= '2026-09-30'
   EXCEPT DISTINCT
-  SELECT customer_id, day, n, amount_sum FROM `fraudfinder.ref_customer_daily`
+  SELECT customer_id, day, n, ROUND(amount_sum, 2) AS amount_sum FROM `fraudfinder.ref_customer_daily`
 )
 UNION ALL
 SELECT 'terminal', COUNT(*) FROM (

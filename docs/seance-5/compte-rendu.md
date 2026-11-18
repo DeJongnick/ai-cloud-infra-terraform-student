@@ -5,9 +5,9 @@
 | Étape 0 : lignes relues dans `MANIFEST.json` (`train-sample`, `valid`, `test`) ; version et alias du modèle en place | 611 548 , 311 624 , 301 545 ; version 1 , alias `champion` (`fraud-scorer-team3`, ID `5677326090998120448`) |
 | Étape 1 : `run_id`, commit, image, graine, AP de validation | `20261118T180926Ze4ef8a`, `8c2691192d9cb5604b54bb8e9e605fac78a077c0`, `fraud-train:td5`, 42, 0,8512 |
 | Étape 1 : durée de l'exécution ; `load` et `fit` de `metadata.json` | 104 s ; 19,0 s, 26,8 s |
-| Étape 3 : `run_id` du modèle 12 mois ; `fit` ; AP de validation | ... ; ... s ; ... |
-| Étape 3 : AP test candidat et champion ; écart et IC à 95 % ; verdict | ... , ... ; ... [... ; ...] ; ... |
-| Étape 3 : version au registre (ou « refus ») ; `rang_lecture_test` | ... ; ... |
+| Étape 3 : `run_id` du modèle 12 mois ; `fit` ; AP de validation | `20261118T185924Z6e84b7` (3 mois, 2026-05 à 2026-07, sur consigne de l'enseignant) ; 168,9 s ; 0,8679 |
+| Étape 3 : AP test candidat et champion ; écart et IC à 95 % ; verdict | 0,8587 , 0,8421 ; +0,0163 [0,0116 ; 0,0198] ; accepté |
+| Étape 3 : version au registre (ou « refus ») ; `rang_lecture_test` | version 2 de `fraud-scorer-team3`, alias `challenger` (le `champion` reste la version 1) ; 1 |
 | Étape 4 : débits DDP à 1 et 2 processus ; AP de validation | ... et ... échantillons/s ; ... et ... |
 | Lien du dépôt (`infra/job.tf`) | <https://github.com/DeJongnick/ai-cloud-infra-terraform-student> |
 
@@ -165,18 +165,131 @@ configuration ne permet pas de séparer cet effet du hasard. Pour le savoir, il 
 - répéter chaque configuration plusieurs fois, avec des graines différentes pour l'échantillonneur ;
 - comparer l'écart entre configurations à la dispersion à l'intérieur d'une même configuration.
 
-## Entraînement final sur Vertex AI (étape 3, 12 mois)
+## Entraînement final sur Vertex AI (étape 3)
+
+Sur consigne de l'enseignant, l'entraînement final porte sur **3 mois (2026-05 à 2026-07) avec
+4 threads**, au lieu de 12 mois et 8 threads. Le reste suit l'énoncé : custom job Vertex AI unique de
+l'équipe, sur une `n2-standard-8` (8 vCPU), avec le compte `team3-train`.
+
+```bash
+docs/seance-5/custom-job.sh team3 n2-standard-8 4 2026-05 \
+  /gcs/advanced-cloud-ai-models/runs/team3/search/leo-w4-t1/best.json
+```
+
+Hyperparamètres : `best.json` de l'étude `leo-w4-t1`, la meilleure AP de validation de nos quatre
+recherches (0,8565). Il s'agit de 382 arbres, d'une profondeur maximale de 9, d'un `learning_rate` de
+0,047, d'un `subsample` de 0,58, d'un `colsample_bytree` de 0,99 et d'un `min_child_weight` de 1,5.
+
+Custom job `1944834068633878528` (`team3-train-large-2026-05-n2-standard-8-t4`) : soumis à 19:50
+(heure de Paris), machine prête à 19:52, terminé avec succès à 19:59.
 
 | Threads | `rows.train` | `load` | `fit` | AP de validation |
 | --- | --- | --- | --- | --- |
-| 8 | ... | ... s | ... s | ... |
+| 4 | 9 228 428 (3 106 763 + 3 011 055 + 3 110 610) | 237,8 s | 168,9 s | 0,8679 |
+
+### Décision d'entrée au registre
+
+`train.gate` a été lancé une seule fois, avec une seule tâche (exécution `team3-train-j6qsd`, 3 min 21 s).
+Fichier de décision : `runs/team3/decisions/20261118T190159634910Z-20261118T185924Z6e84b7.json`.
+
+| | Candidat | Champion |
+| --- | --- | --- |
+| AP sur le test (septembre 2026, 301 545 transactions) | 0,8587 | 0,8421 |
+| IC à 95 % de l'AP | [0,8492 ; 0,8667] | [0,8318 ; 0,8508] |
+
+Écart d'AP (candidat − champion) : **+0,0163**, IC à 95 % par bootstrap apparié (200 rééchantillonnages,
+graine 20261110) : **[0,0116 ; 0,0198]**. La borne basse, 0,0116, dépasse la marge de 0,003 de 0,0086 :
+**verdict « accepté »**, `rang_lecture_test` = 1.
+
+Le candidat est enregistré comme **version 2 de `fraud-scorer-team3`, alias `challenger`**. La version 1
+garde l'alias `champion`. Vertex AI a aussi déplacé l'alias automatique `default` vers la dernière
+version créée. Le fichier de décision indique encore `"statut": "enregistrement_en_cours"` et
+`"version_registre": null`, parce qu'il a été écrit avant la fin de l'enregistrement. Le fichier
+`….registre.json`, écrit ensuite, et le registre confirment la version 2.
+
+### Questions de l'étape 3
+
+**1. Le modèle entre-t-il au registre ?**
+Oui. L'AP du candidat sur le test est de 0,8587, contre 0,8421 pour le champion, soit un écart de
++0,0163. L'intervalle de confiance à 95 % de cet écart est [0,0116 ; 0,0198]. Sa borne basse dépasse la
+marge de 0,003 de 0,0086 : même dans le cas le moins favorable que retient le bootstrap, le candidat
+fait mieux que le champion de plus que la marge.
+
+**2. Pourquoi une marge de 0,003 et non de 0 ?**
+Deux entraînements de la même recette avec deux graines différentes n'ont pas exactement la même AP.
+L'échantillonnage des lignes et des colonnes change, et donc les arbres. Avec une marge de 0, un
+candidat qui ne serait pas meilleur, mais seulement favorisé par sa graine ou par les transactions
+du test, pourrait entrer au registre, et on remplacerait sans cesse un modèle par un équivalent.
+Chaque remplacement a un coût : validation, déploiement, surveillance, risque de régression. La marge
+exige un gain supérieur à ce que le hasard produit seul, et qui vaut la peine d'être déployé.
+
+**3. Pourquoi ne pas décider sur la validation ?**
+La validation (août) a servi à choisir les hyperparamètres : sur plus de 160 essais, nous avons gardé
+celui qui y faisait le mieux. Son AP de validation est donc optimiste, car elle profite d'une part de
+chance sur ce jeu précis. Les écarts se voient : 0,8679 en validation, contre 0,8587 sur le test.
+Seul un jeu jamais utilisé pour choisir, le test de septembre, lu une seule fois, donne une mesure
+non biaisée de ce que le modèle fera sur des transactions futures. Le test est aussi postérieur à la
+validation, comme le seront les transactions de production.
+
+**4. `load` et `fit` comparés à l'étape 1**
+
+| | Étape 1 (`train-sample`) | Étape 3 (`train-large`, 3 mois) | Rapport |
+| --- | --- | --- | --- |
+| Lignes d'entraînement | 611 548 | 9 228 428 | × 15,1 |
+| `load` | 19,0 s | 237,8 s | × 12,5 |
+| `fit` | 26,8 s | 168,9 s | × 6,3 |
+| Threads | 1 | 4 | |
+
+Pour 15 fois plus de lignes, c'est **`load` qui a le plus augmenté** : × 12,5, presque
+proportionnellement au volume. La lecture passe par le montage du bucket (gcsfuse) et ne profite pas
+des threads. Elle devient la plus grosse part du temps (238 s contre 169 s pour l'entraînement).
+
+`fit` n'a augmenté que de × 6,3, alors que le modèle est plus lourd : 382 arbres de profondeur 9,
+contre 300 arbres de profondeur 6 à l'étape 1. C'est ce qu'ont rapporté les 4 threads. Notre recherche
+`leo-w4-t4` donne un ordre de grandeur : 4 threads y rendaient un essai environ 2,5 fois plus rapide
+qu'avec 1 thread, et non 4 fois. Sur cette machine de 8 vCPU, 4 threads laissent la moitié des vCPU
+payés inutilisés pour l'entraînement.
 
 ## Six questions
 
-1. Quelles données, quel code et quelle configuration ont produit notre modèle ?
-2. Combien de temps prend la recherche avec un, quatre et huit workers ?
-3. Pourquoi le gain n'est-il pas proportionnel au nombre de workers ?
-4. Combien a coûté notre recherche, et avec quelles hypothèses ?
-5. Le modèle entre-t-il au registre, et sur quelle base ?
-6. Démonstration DDP : qu'apporte le second processus, et pourquoi ? Une réponse par étudiant, signée
-   de son prénom.
+**1. Quelles données, quel code et quelle configuration ont produit notre modèle ?**
+Le modèle `20261118T185924Z6e84b7` a été produit ainsi :
+- **Données** : `train-large` de mai, juin et juillet 2026, soit 9 228 428 lignes, dont les empreintes
+  `sha256` sont dans `metadata.json` (`92fd5d9c…`, `e1eeb3dc…`, `95517a52…`). La validation sur
+  `valid.parquet` (août 2026, 311 624 lignes, `3693335b…`) a servi à choisir les hyperparamètres.
+- **Code et environnement** : le commit `8c2691192d9cb5604b54bb8e9e605fac78a077c0` et l'image
+  `fraud-train:td5` (Python 3.13.18, XGBoost 3.4.1, numpy 2.5.4).
+- **Configuration** : les hyperparamètres du `best.json` de `leo-w4-t1`, 4 threads, et la graine 42.
+
+**2. Combien de temps prend la recherche avec un, quatre et huit workers ?**
+26 min 24 s à 1 worker, 7 min 28 s à 4 workers, et 4 min 26 s à 8 workers (durée de l'exécution). Hors
+part fixe, la recherche elle-même (`wall_seconds`) dure 1 540 s, 404 s et 202 s. Voir le tableau et la
+courbe de l'étape 2.
+
+**3. Pourquoi le gain n'est-il pas proportionnel au nombre de workers ?**
+Le travail total ne diminue pas : `sum_fit_seconds` reste entre 1 329 et 1 381 s. Il est réparti, avec
+quatre pertes mesurées :
+- une part fixe de 43 à 64 s par exécution, qui pèse 24 % de l'exécution à 8 workers ;
+- les essais en plus : 43 et 47 essais au lieu de 40 ;
+- le déséquilibre entre workers : de 5 à 7 essais chacun à 8 workers, et le dernier fixe la fin ;
+- la coordination par la base Optuna.
+
+Sur la durée de l'exécution, l'accélération est de 3,54 à 4 workers et de 5,96 à 8 workers. Le détail
+est dans les questions de l'étape 2.
+
+**4. Combien a coûté notre recherche, et avec quelles hypothèses ?**
+0,035 $ à 1 worker, 0,036 $ à 4 workers, 0,037 $ à 8 workers, et 0,067 $ pour 4 workers à 4 vCPU. Les
+prix sont ceux des jobs Cloud Run en `europe-west1`, relevés le 18/11/2026 : 0,000018 $ par vCPU-seconde
+et 0,000002 $ par Gio-seconde. On compte toute la durée de chaque tâche. Le quota gratuit, la base
+PostgreSQL et le stockage ne sont pas comptés. La formule et le détail sont dans l'étape 2.
+
+**5. Le modèle entre-t-il au registre, et sur quelle base ?**
+Oui, comme version 2 de `fraud-scorer-team3` avec l'alias `challenger`. La règle a été écrite avant de
+voir le test et appliquée une seule fois (`rang_lecture_test` = 1). L'écart d'AP sur le test de
+septembre est de +0,0163 (0,8587 contre 0,8421), avec un IC à 95 % par bootstrap apparié de
+[0,0116 ; 0,0198]. Sa borne basse dépasse la marge de 0,003.
+
+**6. Démonstration DDP : qu'apporte le second processus, et pourquoi ?** (une réponse par étudiant,
+signée de son prénom ; démonstration au prochain cours)
+
+...

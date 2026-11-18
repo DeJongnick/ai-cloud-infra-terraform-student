@@ -1,5 +1,6 @@
 # Séance 4, partie D : une base vectorielle (Qdrant) sur Cloud Run, pour les justificatifs KYC.
-# À copier dans infra/. Ce fichier ne dépend pas de votre service de scoring.
+# Version complétée par team3, retirée de infra/ après les mesures pour arrêter le service (coût permanent).
+# Pour la recréer : cp docs/seance-4/team3-vectors.tf infra/vectors.tf, puis terraform apply.
 
 resource "google_cloud_run_v2_service" "vectors" {
   name                = "${var.team}-vectors"

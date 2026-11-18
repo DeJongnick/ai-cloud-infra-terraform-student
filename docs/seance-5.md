@@ -1,7 +1,5 @@
 # Séance 5 — Réentraîner le scorer, chercher en parallèle, décider
 
-> **Version du 18 novembre 2026 : les durées de l'étape 3 seront ajoutées après le test complet.**
-
 Deux heures, en équipe. Le modèle de votre service a été entraîné une fois, sur un portable. Vous
 allez le réentraîner comme un **job** reproductible, accélérer la recherche d'hyperparamètres en la
 distribuant sur plusieurs workers, chiffrer ce que cela coûte, puis décider, sur une règle écrite à

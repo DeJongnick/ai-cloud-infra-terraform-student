@@ -6,10 +6,10 @@
 | Octets traités par votre requête de comptage, avec puis sans filtre sur `TX_TS` | 7,0 Mo, 6,2 Mo |
 | Résultat de `check.sql` | client : 0 ; terminal : 0 |
 | Client `7989449428740969`, jour 2026-10-01 dans `customer_daily` | `n` = 5 , `amount_sum` = 100,79 |
-| Lecture des compteurs, source `parquet` (p50, p99) | ... ms, ... ms |
-| Lecture des compteurs, source `bigquery` (p50, p99) | ... ms, ... ms |
-| Lecture des compteurs, source `firestore` (p50, p99) | ... ms, ... ms |
-| Score de la transaction `275114ca...` : `parquet`, `firestore` | ... , ... |
+| Lecture des compteurs, source `parquet` (p50, p99) | 0,49 ms, 2,13 ms (flux du 2 octobre, 5 000 lignes `scored`) |
+| Lecture des compteurs, source `bigquery` (p50, p99) | 370 ms, 758 ms (200 appels `/predict`) |
+| Lecture des compteurs, source `firestore` (p50, p99) | 13,9 ms, 38,3 ms (200 appels `/predict`) |
+| Score de la transaction `275114ca...` : `parquet`, `firestore` | 0,000102 , 0,000193 (`bigquery` : 0,000193, identique à `firestore`) |
 | Partie D : réglage retenu pour un rappel@10 ≥ 0,95 | `m` = 16 , `ef` = 4 ; rappel 0,990 ; p50 0,51 ms, p95 1,13 ms |
 | Partie D : clients ayant présenté le même document que `0018478647296750` | `3263319564977208` , `2947552228922773` , `0553287702820053` |
 | Lien du dépôt (Terraform et SQL) | <https://github.com/DeJongnick/ai-cloud-infra-terraform-student> |
@@ -118,17 +118,53 @@ de scorer, comme pendant l'entraînement.
 
 ## Partie C — Servir
 
+**Comment les latences ont été mesurées.** Le 2 octobre a été publié de 20:08 à 20:11 (heure de
+Paris), alors que le service était en source `parquet` : les 5 000 lignes `scored` de cette période
+donnent p50 = 0,49 ms et p99 = 2,13 ms. Le flux était terminé avant le passage aux deux autres
+sources. Pour les mesurer, on a envoyé à `/predict` 200 transactions du 2 octobre, une par appel, et
+relevé `timings_ms.features`, c'est-à-dire la durée de lecture des compteurs mesurée par le service.
+La même méthode appliquée à `parquet` donne p50 = 0,68 ms et p99 = 1,87 ms, du même ordre que le flux.
+
+| Source | p50 | p99 | Score de `275114ca...` |
+| --- | --- | --- | --- |
+| `parquet` | 0,49 ms | 2,13 ms | 0,000102 |
+| `bigquery` | 370 ms | 758 ms | 0,000193 |
+| `firestore` | 13,9 ms | 38,3 ms | 0,000193 |
+
 **1. Pourquoi le score change-t-il entre `parquet` et les deux autres sources ?**
-...
+Le modèle est le même, mais ses variables ne le sont pas. Les fichiers parquet s'arrêtent au
+30 septembre : pour une transaction du 2 octobre, la veille (1er octobre) est vide, et le client
+semble n'avoir rien fait. `bigquery` et `firestore` lisent les compteurs recalculés en partie B, qui
+contiennent les 5 transactions du client `7989449428740969` du 1er octobre (100,79 €). Le score
+calculé avec ce que le client a fait la veille est donc celui de `bigquery` et `firestore`
+(0,000193).
 
 **2. Que perd-on en gardant `parquet` ?**
-...
+La fraîcheur. Les compteurs sont figés au démarrage de l'instance : plus le flux avance, plus les
+variables sont fausses. Un client qui multiplie les transactions depuis ce matin n'est pas vu, alors
+que c'est justement un signal de fraude. Avec plusieurs instances, chacune a sa propre copie en
+mémoire. `/events` ne met à jour que la mémoire de l'instance qui reçoit la transaction, donc les
+instances divergent entre elles, et tout est perdu à chaque redémarrage. Pour rafraîchir, il faut
+regénérer les fichiers et redémarrer les instances.
 
 **3. Pourquoi ne pas lire BigQuery à chaque transaction ?**
-...
+BigQuery est un entrepôt analytique, fait pour parcourir beaucoup de lignes en peu de requêtes, pas
+pour lire quelques lignes par clé des milliers de fois par seconde. Avec un p50 de 370 ms, une
+requête occupe une place de concurrence pendant près de 0,4 s. Avec une concurrence de 4, une
+instance traite au plus 4 / 0,37 ≈ 11 transactions par seconde, et les 3 instances environ 32 par
+seconde. Au palier de 1 000 messages/s de la séance 3, il faudrait une centaine d'instances. Avec
+notre limite de 3, la file grossirait d'environ 970 messages par seconde, et l'âge du plus ancien
+message exploserait. S'y ajoutent le coût de chaque requête, les quotas de tâches BigQuery, et un p99
+de 758 ms qui dépasse un budget de scoring en temps réel.
 
 **4. À quelle fréquence relancer la copie vers Firestore, et qui s'en chargerait ?**
-...
+Les variables sont des compteurs par jour, et le service ne lit que les jours jusqu'à la veille. Une
+copie par jour, juste après minuit, suffit donc : elle recalcule `customer_daily` et `terminal_daily`
+avec la journée terminée, puis met à jour Firestore. Dans un vrai système, ce ne serait pas une
+personne qui lance un script. Ce serait une tâche planifiée, par exemple Cloud Scheduler, une
+requête planifiée BigQuery suivie d'un Cloud Run job, ou un orchestrateur comme Airflow. Elle
+alerterait si la copie échoue ou si `check.sql` ne renvoie plus 0. Pour des variables à l'heure ou à
+la minute, il faudrait mettre Firestore à jour en continu depuis le flux, par exemple avec Dataflow.
 
 ## Partie D — Questions
 
@@ -170,4 +206,8 @@ entre eux, on ne peut donc pas mélanger anciens et nouveaux.
 
 ## Conclusion
 
-...
+Pour scorer en direct, nous garderions Firestore : il lit les compteurs à jour de la veille (même
+score que BigQuery) en environ 14 ms, quand BigQuery prend 370 ms et ne tiendrait pas le débit.
+Le parquet en mémoire est le plus rapide, mais ses compteurs sont figés et divergent d'une instance à
+l'autre ; BigQuery reste la source de vérité qui recalcule les compteurs, recopiés chaque jour dans
+Firestore.

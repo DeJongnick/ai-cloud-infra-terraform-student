@@ -1,0 +1,16 @@
+{
+ "study": "leo-w4-t1",
+ "trials_completed": 43,
+ "wall_seconds": 404.37,
+ "sum_fit_seconds": 1373.1,
+ "best_value": 0.8565414960512021,
+ "best_params": {
+  "n_estimators": 382,
+  "max_depth": 9,
+  "learning_rate": 0.046865429756937416,
+  "subsample": 0.5791899871282691,
+  "colsample_bytree": 0.989384122583065,
+  "min_child_weight": 1.508649695999357
+ },
+ "workers": 4
+}

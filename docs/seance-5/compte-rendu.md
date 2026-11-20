@@ -291,7 +291,13 @@ voir le test et appliquée une seule fois (`rang_lecture_test` = 1). L'écart d'
 septembre est de +0,0163 (0,8587 contre 0,8421), avec un IC à 95 % par bootstrap apparié de
 [0,0116 ; 0,0198]. Sa borne basse dépasse la marge de 0,003.
 
-**6. Démonstration DDP : qu'apporte le second processus, et pourquoi ?** (une réponse par étudiant,
-signée de son prénom ; démonstration au prochain cours)
+**6. Démonstration DDP : qu'apporte le second processus, et pourquoi ?** Réponses individuelles,
+chacune signée de son prénom : ce que DDP réplique sur chaque processus, pourquoi le débit ne double
+pas, et dans quel cas FSDP ou ZeRO s'imposerait à la place de DDP.
 
-...
+| Prénom | Réponse |
+| --- | --- |
+| Léo | En DDP, chaque processus garde une **copie complète** du modèle : ses paramètres, ses gradients et l'état de l'optimiseur. Chaque processus lit une part différente des données (un `DistributedSampler` découpe le lot), calcule ses gradients, puis les processus font la **moyenne de leurs gradients** (all-reduce) avant chaque mise à jour : les copies restent identiques. Le second processus apporte donc deux fois plus d'échantillons traités par pas, pas un modèle plus gros.<br><br>Le débit ne double pas, pour trois raisons : l'all-reduce de chaque pas coûte une communication proportionnelle à la taille du modèle, pendant laquelle on ne calcule pas ; chaque pas attend le processus le plus lent ; et en CPU, les deux processus se partagent la même machine (cœurs, bande passante mémoire, lecture des données). Le lot effectif double aussi, ce qui peut changer la convergence, donc l'AP de validation, à nombre d'époques égal.<br><br>FSDP ou ZeRO s'imposent quand le modèle ne tient plus en mémoire sur un seul processus : avec Adam, paramètres, gradients et état de l'optimiseur pèsent plusieurs fois la taille du modèle, et DDP les recopie partout. FSDP et ZeRO les **découpent** entre les processus (ZeRO-1 l'état de l'optimiseur, ZeRO-2 aussi les gradients, ZeRO-3 et FSDP aussi les paramètres), au prix de communications en plus (reconstituer les paramètres avant chaque couche). Pour le petit réseau de la démonstration, ou notre XGBoost, DDP suffit : le modèle tient largement en mémoire. |
+| Nicolas | *à compléter par Nicolas* |
+| Pierre | *à compléter par Pierre* |
+| Richard | *à compléter par Richard* |

@@ -1,5 +1,7 @@
 # Compte rendu séance 3 — team3
 
+Qui a fait quoi : Pierre Salmon (`infra/pubsub.tf`, branchement et montée en charge) ; Léo Bouchand (endpoint `/pubsub` et ses tests, mesures Cloud Monitoring, compte rendu).
+
 | Mesure | Valeur |
 | --- | --- |
 | Messages traités et débit atteint | ≈ 384 000 messages scorés, doublons compris (≈ 398 000 requêtes `/pubsub`, dont 14 550 refusées en 429 puis relivrées) ; palier le plus haut suivi sans retard qui grossit : ≈ 530 messages/s |

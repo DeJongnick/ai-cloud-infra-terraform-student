@@ -1,12 +1,14 @@
 # Compte rendu séance 4 — team3
 
+Qui a fait quoi : Léo Bouchand (parties A, B, C et D, compte rendu).
+
 | Mesure | Valeur |
 | --- | --- |
 | Lignes dans `tx_history`, transactions distinctes, doublons | 101 359 lignes, 100 859 `TX_ID` distincts, 500 doublons |
 | Octets traités par votre requête de comptage, avec puis sans filtre sur `TX_TS` | 7,0 Mo, 6,2 Mo |
 | Résultat de `check.sql` | client : 0 ; terminal : 0 |
 | Client `7989449428740969`, jour 2026-10-01 dans `customer_daily` | `n` = 5 , `amount_sum` = 100,79 |
-| Lecture des compteurs, source `parquet` (p50, p99) | 0,49 ms, 2,13 ms (flux du 2 octobre, 5 000 lignes `scored`) |
+| Lecture des compteurs, source `parquet` (p50, p99) | 0,68 ms, 1,87 ms (200 appels `/predict`, même protocole que les deux autres sources) |
 | Lecture des compteurs, source `bigquery` (p50, p99) | 370 ms, 758 ms (200 appels `/predict`) |
 | Lecture des compteurs, source `firestore` (p50, p99) | 13,9 ms, 38,3 ms (200 appels `/predict`) |
 | Score de la transaction `275114ca...` : `parquet`, `firestore` | 0,000102 , 0,000193 (`bigquery` : 0,000193, identique à `firestore`) |
@@ -118,18 +120,24 @@ de scorer, comme pendant l'entraînement.
 
 ## Partie C — Servir
 
-**Comment les latences ont été mesurées.** Le 2 octobre a été publié de 20:08 à 20:11 (heure de
-Paris), alors que le service était en source `parquet` : les 5 000 lignes `scored` de cette période
-donnent p50 = 0,49 ms et p99 = 2,13 ms. Le flux était terminé avant le passage aux deux autres
-sources. Pour les mesurer, on a envoyé à `/predict` 200 transactions du 2 octobre, une par appel, et
-relevé `timings_ms.features`, c'est-à-dire la durée de lecture des compteurs mesurée par le service.
-La même méthode appliquée à `parquet` donne p50 = 0,68 ms et p99 = 1,87 ms, du même ordre que le flux.
+**Protocole de mesure, identique pour les trois sources.** Le 18 novembre, pour chaque source :
+`feature_source` changé dans `terraform.tfvars` puis `terraform apply`, 3 appels d'échauffement, puis
+200 appels `POST /predict` avec une transaction du 2 octobre chacun (les 200 premières de
+`data/replay.parquet` à partir du 2 octobre, les mêmes pour les trois sources). On relève
+`timings_ms.features`, la durée de lecture des compteurs mesurée par le service, et on en tire p50 et
+p99. Le score de `275114ca...` est relevé dans la même session.
 
 | Source | p50 | p99 | Score de `275114ca...` |
 | --- | --- | --- | --- |
-| `parquet` | 0,49 ms | 2,13 ms | 0,000102 |
+| `parquet` | 0,68 ms | 1,87 ms | 0,000102 |
 | `bigquery` | 370 ms | 758 ms | 0,000193 |
 | `firestore` | 13,9 ms | 38,3 ms | 0,000193 |
+
+Mesure complémentaire, sur le flux réel. Le 2 octobre a été publié dans `ff-replay` le 16 novembre,
+de 20:08 à 20:11 (heure de Paris), alors que le service était en source `parquet`. Les 5 000 lignes
+`scored` de cette période donnent `features_ms` p50 = 0,49 ms et p99 = 2,13 ms, du même ordre que la
+mesure par `/predict`. Le flux était terminé avant le passage aux deux autres sources : c'est pour
+comparer les trois sources à protocole égal que le tableau ci-dessus utilise `/predict`.
 
 **1. Pourquoi le score change-t-il entre `parquet` et les deux autres sources ?**
 Le modèle est le même, mais ses variables ne le sont pas. Les fichiers parquet s'arrêtent au

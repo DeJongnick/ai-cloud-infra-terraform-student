@@ -1,5 +1,7 @@
 # Rapport séance 2 - team3
 
+Qui a fait quoi : Léo Bouchand (image, Terraform, mesures et rapport).
+
 Service : `team3-fraud-api` (Cloud Run, `europe-west1`), déployé par Terraform.
 Dépôt : <https://github.com/DeJongnick/ai-cloud-infra-terraform-student>
 

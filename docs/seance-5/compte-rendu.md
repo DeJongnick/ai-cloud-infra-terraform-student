@@ -1,5 +1,7 @@
 # Compte rendu séance 5 — team3
 
+Qui a fait quoi : Léo Bouchand et Nicolas Lejeune (job, recherches, entraînement final, décision d'entrée, compte rendu). La question 6 est signée individuellement.
+
 | Mesure | Valeur |
 | --- | --- |
 | Étape 0 : lignes relues dans `MANIFEST.json` (`train-sample`, `valid`, `test`) ; version et alias du modèle en place | 611 548 , 311 624 , 301 545 ; version 1 , alias `champion` (`fraud-scorer-team3`, ID `5677326090998120448`) |

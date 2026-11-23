@@ -112,6 +112,19 @@ resource "google_cloud_run_v2_service" "api" {
     }
   }
 
+  # Séance 2, partie D : le déploiement continu (.github/workflows/deploy.yml du dépôt applicatif)
+  # choisit l'image et crée les révisions avec gcloud. Sans ce bloc, chaque terraform apply
+  # remettrait var.image et effacerait le nom de révision et le client écrits par gcloud.
+  # Terraform garde tout le reste : compte, ressources, scaling, volumes, variables.
+  lifecycle {
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].revision,
+      template[0].containers[0].image,
+    ]
+  }
+
   depends_on = [google_storage_bucket_iam_member.models_reader]
 }
 

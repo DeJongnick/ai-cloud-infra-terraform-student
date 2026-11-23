@@ -38,6 +38,31 @@ Valeurs lues minute par minute dans Cloud Monitoring.
 | 18:13 | ≈ 0 | 5 018 | 138 | 3 | – |
 | 18:14 | 0 | 0 | 0 | 3 | – |
 
+## Preuves (relevées le 23 novembre 2026)
+
+**Service privé appelé avec un jeton** (`infra/main.tf`, service `team3-fraud-api`) :
+
+```text
+$ curl -s -o /dev/null -w "%{http_code}\n" $URL/health
+403
+$ curl -s -o /dev/null -w "%{http_code}\n" -H "Authorization: Bearer $(gcloud auth print-identity-token)" $URL/health
+200
+```
+
+**`team3-push` n'a qu'un droit**, `roles/run.invoker` sur `team3-fraud-api`
+(`google_cloud_run_v2_service_iam_member.push_invokes_api` dans `infra/pubsub.tf`). Il n'a aucun rôle
+sur le projet. Le seul droit qui le concerne en plus est `roles/iam.serviceAccountTokenCreator`,
+donné **sur** ce compte à l'agent de service Pub/Sub, pour que Pub/Sub puisse signer le jeton OIDC en
+son nom.
+
+**204 après le log.** Dans `app.py`, `/pubsub` écrit la ligne `scored` (`_log("INFO", "scored", ...)`),
+puis renvoie `Response(status_code=204)`. Un message illisible ou invalide est journalisé
+(`rejected`), puis reçoit un 422 : il n'est pas acquitté.
+
+**Image de la séance 3.** La révision `team3-fraud-api-00003-zvc` (12 novembre, 18:16 UTC) tourne sur
+`team3-fraud-api:td3`, manifeste `linux/amd64` `sha256:3c8882cf…`. Depuis la séance 4, le service
+utilise `ref-fraud-api:td4`, comme le demande l'énoncé de la séance 4.
+
 ## Étape 1 — Brancher
 
 **1. Messages non acquittés et âge du plus ancien message pendant les 404.**

@@ -21,6 +21,8 @@ Première requête de l'étape 0 (`fraudfinder.tx_seed`, 24 au 30 septembre) : 7
 
 ## Partie D — mesures
 
+Partie D réalisée et rédigée par Léo Bouchand (évaluation individuelle).
+
 300 requêtes, 10 voisins, temps mesuré par le serveur.
 
 `m = 16` (index construit en 105 s) :
@@ -175,6 +177,8 @@ alerterait si la copie échoue ou si `check.sql` ne renvoie plus 0. Pour des var
 la minute, il faudrait mettre Firestore à jour en continu depuis le flux, par exemple avec Dataflow.
 
 ## Partie D — Questions
+
+Réponses de Léo Bouchand.
 
 **1. Que gagne-t-on et que perd-on avec `ef` et `m` ?**
 Pour `m = 4`, passer `ef` de 4 à 256 fait monter le rappel de 0,732 à 0,948, mais la latence p50

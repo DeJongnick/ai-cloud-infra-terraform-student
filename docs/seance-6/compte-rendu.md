@@ -4,6 +4,8 @@
 
 **Projet :** `advanced-cloud-ai`, région `europe-west1`
 
+Qui a fait quoi : Pierre Salmon et Richard Brouquier (validation, ombre et palier à 10 % le 19/11) ; Pierre Salmon (reprise complète, panne, retour arrière et livrables le 20/11) ; Léo Bouchand (« Après le TD » et extensions).
+
 ## Résultat
 
 Le challenger (modèle v2) a été validé, observé en ombre, puis déployé par paliers jusqu'à 100 %.

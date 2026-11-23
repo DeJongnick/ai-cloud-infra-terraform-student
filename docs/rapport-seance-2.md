@@ -69,3 +69,46 @@ pour un retour arrière.
 - Sans jeton, l'appel renvoie 403 : la requête est rejetée par le frontal Google (IAM) avant
   d'atteindre le conteneur. Avec un jeton d'identité et le rôle `roles/run.invoker`, le service
   répond.
+
+## Preuves relevées le 23 novembre 2026
+
+Le service a été détruit en fin de séance 2, puis recréé par le même `infra/main.tf` le 12 novembre
+pour la séance 3. Les noms de révision du tableau ci-dessus n'existent donc plus. Les preuves
+ci-dessous portent sur le service recréé, tel qu'il tourne aujourd'hui.
+
+**Image construite pour `linux/amd64`, dans le registre partagé.**
+
+```text
+$ docker buildx imagetools inspect europe-west1-docker.pkg.dev/advanced-cloud-ai/cloud-ai/team3-fraud-api:v1
+  Platform:    linux/amd64
+  Platform:    unknown/unknown        # attestation de build, pas une seconde image
+```
+
+Les révisions `team3-fraud-api-00001-ptn` et `00002-797` (12 novembre, 17:45 et 18:06 UTC) ont tourné
+sur cette image (`team3-fraud-api@sha256:d0a705e4…`). Depuis la séance 4, le service utilise l'image
+de référence `ref-fraud-api:td4`, comme le demande l'énoncé de la séance 4.
+
+**Terraform ne voit aucun écart après l'`apply`.**
+
+```text
+$ terraform plan
+No changes. Your infrastructure matches the configuration.
+```
+
+**Service privé : 403 sans jeton, 200 avec.**
+
+```text
+$ curl -s -o /dev/null -w "%{http_code}\n" $URL/health
+403
+$ curl -s -w "\n%{http_code}\n" -H "Authorization: Bearer $(gcloud auth print-identity-token)" $URL/health
+{"status":"ok","pid":1,"features":20,"source":"firestore","database":"team3","rss_mb":172.5}
+200
+```
+
+**Moindre privilège.** Personne n'a de droit `allUsers` ou `allAuthenticatedUsers`, ni sur le service
+ni sur le projet. `roles/run.invoker` sur `team3-fraud-api` est donné aux quatre membres de l'équipe
+et à `team3-push` (séance 3). En séance 2, `team3-run` avait deux droits :
+`roles/storage.objectViewer` sur le bucket des modèles et `roles/logging.logWriter`. Depuis la
+partie C de la séance 4 (`infra/features.tf`), il a aussi `roles/bigquery.dataViewer` sur le dataset
+`team3`, et `roles/bigquery.jobUser` et `roles/datastore.user` sur le projet. Ces trois droits lui
+servent à lire les compteurs dans BigQuery et Firestore.

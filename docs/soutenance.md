@@ -201,13 +201,22 @@ Ce qui n'existe plus, et quoi montrer à la place :
 
 ## 5. Questions probables (critère 4)
 
-**TD1 (Léo)**
-- *Qu'est-ce qui limitait le service ?* `enrich` relisait tout l'historique pour chaque transaction ; le
-  profil et la mesure à H = 50 000 / 150 000 / 500 000 le montrent (chiffres : restitution du notebook).
-- *Pourquoi `limit` aide après le pic ?* Sans limite, la file accumulée dépasse le délai de 2 s et le
-  service échoue encore une fois la charge revenue ; avec `limit`, il rejette vite et repart à vide.
-- *Comment dimensionner le pic × 3 ?* Capacité utile d'un réplica 1 CPU (paliers, moins 30 % de marge),
-  puis `ceil(300 / capacité)` réplicas.
+**TD1 (Léo, individuel)**
+- *Qu'est-ce qui limitait le service ?* `enrich` relisait les 500 000 lignes d'historique à chacun des
+  55 appels de `query` par transaction : 13,88 ms sur 14,95 ms de temps serveur (93 %), contre 0,12 ms
+  pour le modèle. Il passe de 1,40 à 10,38 ms par transaction quand H passe de 50 000 à 500 000.
+- *Et la correction ?* Un index `groupby("client_id").indices` calculé une fois : `enrich` passe de
+  10,38 à 1,27 ms (× 8,2), scores identiques (`check_golden`, écart 0).
+- *Pourquoi `limit` aide après le pic ?* Sans limite, le serveur traite des demandes que le client a
+  déjà abandonnées (plus de 2 s) : les échecs durent 5 s après le pic. Avec `limit = 8`, il répond 503
+  tout de suite et revient à 20 ms dès la fin du pic, mais il reste à 89,4 % de réussite : `limit` ne
+  crée pas de capacité.
+- *Comment dimensionner le pic × 3 ?* Un réplica corrigé à 1 CPU tient 250 demandes/s (générateur de
+  secours, celui du notebook plafonnait avant). Avec 30 % de marge, 175 demandes/s utiles, donc
+  2 réplicas pour 300 demandes/s, environ 0,14 $ de l'heure sur Cloud Run, contre environ 5 réplicas
+  de 2 CPU pour le code livré.
+- *Limite principale ?* Mesuré sur un portable, sans réseau : le réseau réel ajoute environ 50 ms
+  (TD2), et le pic au ras de la capacité donne 28 à 84 % de réussite selon l'exécution.
 
 **TD2**
 - *Pourquoi un compte `team3-run` plutôt que le compte par défaut ?* Moindre privilège : deux droits

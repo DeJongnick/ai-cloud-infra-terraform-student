@@ -20,6 +20,15 @@ L'âge est relevé via l'API Monitoring avec le filtre et l'agrégation du table
 
 Heure à laquelle les critères sont figés : 20 novembre 2026, 12 h 38 (Europe/Paris).
 
+Horodatage et premier déploiement : la première révision candidate,
+`team3-scorer-candidate-1119194547`, a été créée le 19 novembre 2026 à 19 h 45 min 55 s (Paris),
+pendant la séance, et la révision candidate réutilisée ensuite, `team3-scorer-candidate-1119195956`,
+le même jour à 20 h 01 min 26 s (`gcloud run revisions list`, champ `creationTimestamp`). Le
+19 novembre, aucun critère écrit n'a été conservé avant ces déploiements. Les critères ci-dessous ont
+été figés le 20 novembre à 12 h 38, avant l'ombre, les paliers et la panne de la reprise, mais après
+la création de ces révisions : ils ne respectent donc pas la règle « critères horodatés avant le
+premier déploiement ».
+
 Objectif de service : au moins 95 % des transactions scorées en 10 ms ou moins.
 
 | Signal | Référence | Seuil d'avancement | Seuil de retour arrière | Source |

@@ -33,12 +33,19 @@ créée, pas celle qui sert :
 
 | Champ | Révision |
 | --- | --- |
-| `template.revision` | `team3-scorer-next-1120132555`, avec `MODELS_DIR=/mnt/models/td6/next-model` et `MODEL_VERSION=next` |
+| `template.revision` | `team3-scorer-smoke-1123140542`, avec `MODELS_DIR=/mnt/models/runs/team3/models/20261118T185924Z6e84b7` et `MODEL_VERSION=2` |
 | `traffic` à 100 % | `team3-scorer-candidate-1119195956` (tag `candidate`) |
 
-Le gabarit courant du service est donc celui de la version défaillante de l'étape 4. Un nouveau
-déploiement qui partirait de ce gabarit referait la panne. Pour reconstruire le service tel qu'il
-sert, il faut reprendre les variables de la révision `candidate`, pas celles du gabarit.
+Le premier plan, généré le 23 novembre avant le test de fumée de `release.yml`, montrait encore
+`team3-scorer-next-1120132555` (`MODELS_DIR=/mnt/models/td6/next-model`, `MODEL_VERSION=next`) :
+le gabarit courant était celui de la version défaillante de l'étape 4, et un déploiement parti de
+ce gabarit aurait refait la panne. Le test de fumée a ensuite créé deux révisions `smoke`, sans
+trafic : la dernière, avec le modèle version 2, est devenue le gabarit. `scorer.tf` et `plan.txt`
+ont été régénérés après ce test, et le plan reste `1 to import, 0 to add, 0 to change, 0 to destroy`.
+Le gabarit porte maintenant le même modèle que la révision servie, mais pas le même nom de
+révision. Pour reconstruire le service tel qu'il sert, il faut reprendre les variables de la
+révision `candidate`, pas celles du gabarit : le gabarit suit la dernière révision créée, quelle
+qu'elle soit.
 
 ## 2. L'alerte
 

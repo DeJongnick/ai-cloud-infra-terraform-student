@@ -35,7 +35,7 @@ resource "google_cloud_run_v2_service" "scorer" {
     health_check_disabled            = false
     labels                           = {}
     max_instance_request_concurrency = 4
-    revision                         = "team3-scorer-next-1120132555"
+    revision                         = "team3-scorer-smoke-1123140542"
     service_account                  = "team3-scorer@advanced-cloud-ai.iam.gserviceaccount.com"
     session_affinity                 = false
     timeout                          = "300s"
@@ -70,11 +70,11 @@ resource "google_cloud_run_v2_service" "scorer" {
       }
       env {
         name  = "MODELS_DIR"
-        value = "/mnt/models/td6/next-model"
+        value = "/mnt/models/runs/team3/models/20261118T185924Z6e84b7"
       }
       env {
         name  = "MODEL_VERSION"
-        value = "next"
+        value = "2"
       }
       env {
         name  = "PREPARED_AT"

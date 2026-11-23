@@ -1,4 +1,4 @@
-Écart à connaître : template.revision vaut team3-scorer-next-1120132555 (dernière révision créée, modèle next défaillant), alors que les blocs traffic servent 100 % sur team3-scorer-candidate-1119195956 ; le gabarit courant du service n'est pas celui qui sert.
+Écart à connaître : template.revision vaut team3-scorer-smoke-1123140542 (dernière révision créée, le 23/11 par le test de fumée de release.yml, sans trafic, avec le modèle version 2), alors que les blocs traffic servent 100 % sur team3-scorer-candidate-1119195956 (même modèle version 2) ; le gabarit courant du service n'est pas celui de la révision qui sert. Ce plan remplace celui du 23/11 généré avant ce test, où le gabarit était encore team3-scorer-next-1120132555.
 
 google_cloud_run_v2_service.scorer: Preparing import... [id=projects/advanced-cloud-ai/locations/europe-west1/services/team3-scorer]
 google_cloud_run_v2_service.scorer: Refreshing state... [id=projects/advanced-cloud-ai/locations/europe-west1/services/team3-scorer]
@@ -13,7 +13,7 @@ Terraform will perform the following actions:
         conditions              = [
             {
                 execution_reason     = null
-                last_transition_time = "2026-11-20T12:49:09.064076Z"
+                last_transition_time = "2026-11-23T14:07:30.523665Z"
                 message              = null
                 reason               = null
                 revision_reason      = null
@@ -23,8 +23,8 @@ Terraform will perform the following actions:
             },
             {
                 execution_reason     = null
-                last_transition_time = "2026-11-20T12:49:18.295570Z"
-                message              = "Updating revision scaling succeeded."
+                last_transition_time = "2026-11-23T14:07:33.957295Z"
+                message              = "Deploying revision succeeded in 1m14.58s."
                 reason               = null
                 revision_reason      = "RETIRED"
                 severity             = null
@@ -44,28 +44,28 @@ Terraform will perform the following actions:
         effective_labels        = {
             "goog-terraform-provisioned" = "true"
         }
-        etag                    = "\"CMSDgdgGEKDQvs8C/cHJvamVjdHMvYWR2YW5jZWQtY2xvdWQtYWkvbG9jYXRpb25zL2V1cm9wZS13ZXN0MS9zZXJ2aWNlcy90ZWFtMy1zY29yZXI\""
+        etag                    = "\"CKGRkdgGEPjVmHU/cHJvamVjdHMvYWR2YW5jZWQtY2xvdWQtYWkvbG9jYXRpb25zL2V1cm9wZS13ZXN0MS9zZXJ2aWNlcy90ZWFtMy1zY29yZXI\""
         expire_time             = null
-        generation              = "21"
+        generation              = "24"
         iap_enabled             = false
         id                      = "projects/advanced-cloud-ai/locations/europe-west1/services/team3-scorer"
         ingress                 = "INGRESS_TRAFFIC_ALL"
         invoker_iam_disabled    = false
         labels                  = {}
         last_modifier           = "<adresse>"
-        latest_created_revision = "projects/advanced-cloud-ai/locations/europe-west1/services/team3-scorer/revisions/team3-scorer-next-1120132555"
-        latest_ready_revision   = "projects/advanced-cloud-ai/locations/europe-west1/services/team3-scorer/revisions/team3-scorer-next-1120132555"
+        latest_created_revision = "projects/advanced-cloud-ai/locations/europe-west1/services/team3-scorer/revisions/team3-scorer-smoke-1123140542"
+        latest_ready_revision   = "projects/advanced-cloud-ai/locations/europe-west1/services/team3-scorer/revisions/team3-scorer-smoke-1123140542"
         launch_stage            = "GA"
         location                = "europe-west1"
         name                    = "team3-scorer"
-        observed_generation     = "21"
+        observed_generation     = "24"
         project                 = "advanced-cloud-ai"
         reconciling             = false
         ssh_enabled             = false
         terminal_condition      = [
             {
                 execution_reason     = null
-                last_transition_time = "2026-11-20T12:49:09.105683Z"
+                last_transition_time = "2026-11-23T14:07:30.568523Z"
                 message              = null
                 reason               = null
                 revision_reason      = null
@@ -92,7 +92,7 @@ Terraform will perform the following actions:
             },
         ]
         uid                     = "da124657-4c9d-49b5-b16c-dd47fcf00598"
-        update_time             = "2026-11-20T12:49:08.703572Z"
+        update_time             = "2026-11-23T14:07:29.245771Z"
         uri                     = "https://team3-scorer-ueiaychpgq-ew.a.run.app"
         urls                    = [
             "https://team3-scorer-191726065850.europe-west1.run.app",
@@ -114,7 +114,7 @@ Terraform will perform the following actions:
             health_check_disabled            = false
             labels                           = {}
             max_instance_request_concurrency = 4
-            revision                         = "team3-scorer-next-1120132555"
+            revision                         = "team3-scorer-smoke-1123140542"
             service_account                  = "team3-scorer@advanced-cloud-ai.iam.gserviceaccount.com"
             session_affinity                 = false
             timeout                          = "300s"
@@ -152,11 +152,11 @@ Terraform will perform the following actions:
                 }
                 env {
                     name  = "MODELS_DIR"
-                    value = "/mnt/models/td6/next-model"
+                    value = "/mnt/models/runs/team3/models/20261118T185924Z6e84b7"
                 }
                 env {
                     name  = "MODEL_VERSION"
-                    value = "next"
+                    value = "2"
                 }
                 env {
                     name  = "PREPARED_AT"

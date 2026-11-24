@@ -16,6 +16,16 @@ Qui a fait quoi : Léo Bouchand (parties A, B, C et D, compte rendu).
 | Partie D : clients ayant présenté le même document que `0018478647296750` | `3263319564977208` , `2947552228922773` , `0553287702820053` |
 | Lien du dépôt (Terraform et SQL) | <https://github.com/DeJongnick/ai-cloud-infra-terraform-student> |
 
+**Relu le 24/11 : la table contient deux rejeux.** Les chiffres ci-dessus ont été relevés le 16/11
+entre les deux rejeux de `ff-replay`. Le premier rejeu a été publié de 18:52:42 à 18:56:08 UTC,
+et le second de 19:08:05 à 19:11:32 UTC. Le 24/11, la même requête de comptage (énoncé, partie A,
+étape 3) renvoie 202 718 lignes, 100 859 `TX_ID` distincts et 202 718 `message_id` distincts.
+Chaque rejeu compte 101 359 lignes et 100 859 transactions : ce sont les chiffres du tableau.
+Les octets traités doublent aussi : 13 987 542 avec le filtre, 12 365 798 sans. Le nombre de
+transactions distinctes et `check.sql` (0 et 0) ne changent pas, parce que `flux` déduplique par
+`TX_ID`. Requête qui sépare les deux rejeux :
+`SELECT IF(publish_time < "2026-11-16 19:00:00", "1er rejeu", "2e rejeu") AS rejeu, COUNT(*) AS lignes, COUNT(DISTINCT TX_ID) AS tx FROM team3.tx_history GROUP BY rejeu`.
+
 Première requête de l'étape 0 (`fraudfinder.tx_seed`, 24 au 30 septembre) : 7 lignes, environ
 100 000 transactions par jour, 11 259 488 octets traités (10,7 Mio).
 

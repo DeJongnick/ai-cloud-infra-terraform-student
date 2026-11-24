@@ -6,16 +6,24 @@ Format : 20 min de présentation, 15 min de questions. Le prof veut voir le syst
 Ordre de la démo : on suit une transaction de bout en bout, du flux au modèle en service. Chacun
 défend son choix au moment où la démo passe sur sa partie.
 
+La démo se lance avec `scripts/demo.sh`, depuis la racine du fork. Le script compte 10 étapes ;
+chacune affiche la commande, puis son résultat, et attend Entrée. Pour reprendre à une étape après
+un incident : `scripts/demo.sh 6`. Pour répéter sans pause : `DEMO_AUTO=1 scripts/demo.sh`, qui dure
+environ 4 min sans les explications. Une transaction et un message empoisonné sont publiés en
+direct dans `team3-demo` (`infra/demo.tf`), un topic branché sur le même `/pubsub` que `ff-tx`, avec
+le même compte `team3-push` et la même file de messages morts. On ne peut pas publier dans `ff-tx`,
+qui est le topic de l'enseignant. Le script ne modifie pas `team3-scorer`, ressource du socle.
+
 ## 1. Déroulé minuté
 
 | Temps | Qui | Ce qu'on dit | Ce qu'on montre |
 | --- | --- | --- | --- |
-| 0:00 – 2:00 | Léo | Le cas : scorer chaque transaction FraudFinder en ligne, sous SLA. La chaîne en une phrase par bloc. | Le schéma (section 2), seule « diapo ». |
-| 2:00 – 6:00 | Léo | **Choix 1 (Léo)** : lire les compteurs dans Firestore au moment du scoring (TD4 C). TD1 en 30 s, comme origine du raisonnement « mesurer avant d'optimiser ». | Cloud Run `team3-fraud-api` → Révisions (image `ref-fraud-api:td4`, `FEATURE_SOURCE=firestore`) ; BigQuery `team3.tx_history` (partition `TX_TS`), `customer_daily` ; Firestore base `team3` ; `curl` 403 sans jeton / 200 avec. |
-| 6:00 – 10:00 | Pierre | **Choix 2 (Pierre)** : push Pub/Sub authentifié vers le service, acquittement après le travail, file de messages morts à 5 tentatives (TD3). | Pub/Sub → `team3-tx-push` (endpoint `/pubsub`, OIDC `team3-push`, lettre morte 5) ; IAM du service (seul `run.invoker`) ; Logs Explorer `delivery_attempt` ; tableau de montée en charge du compte rendu TD3. |
-| 10:00 – 13:30 | Nicolas | **Choix 3 (Nicolas)** : paralléliser la recherche par workers plutôt que par vCPU (TD5). Règle d'entrée appliquée une fois. | Cloud Run Jobs `team3-train` (exécutions) ; `docs/seance-5/acceleration.png` ; Vertex AI → Registre `fraud-scorer-team3`, versions 1 et 2 ; GCS `runs/team3/decisions/`. |
-| 13:30 – 17:30 | Richard | **Choix 4 (Richard)** : valider le challenger sur les segments et en ombre, pas sur la moyenne, avant tout trafic (TD6 étape 2). Puis paliers et panne `next` en 1 min. | `docs/seance-6/validation.txt` (segments) ; Cloud Run `team3-scorer` → Révisions et trafic (tags `candidate`, `champion`) ; tableau de bord « TD6 team3 » sur le 20/11 13:20-13:45 ; log `Feature shape mismatch`. |
-| 17:30 – 19:00 | Pierre ou Léo | Ce que l'incident a changé : l'alerte en code et le test de fumée bloquant. | Monitoring → Alertes `team3-scorer-release` ; `infra/release.tf` ; GitHub Actions : run `release` en échec sur le test de fumée, puis en succès. |
+| 0:00 – 2:00 | Léo (avant l'étape 1) | Le cas : scorer chaque transaction FraudFinder en ligne, sous SLA. La chaîne en une phrase par bloc. | Le schéma (section 2), seule « diapo ». |
+| 2:00 – 6:00 | Léo (étapes 1 à 3) | **Choix 1 (Léo)** : lire les compteurs dans Firestore au moment du scoring (TD4 C). TD1 en 30 s, comme origine du raisonnement « mesurer avant d'optimiser ». | Cloud Run `team3-fraud-api` → Révisions (image `ref-fraud-api:td4`, `FEATURE_SOURCE=firestore`) ; BigQuery `team3.tx_history` (partition `TX_TS`), `customer_daily` ; Firestore base `team3` ; `curl` 403 sans jeton / 200 avec. |
+| 6:00 – 10:00 | Pierre (étapes 4 à 6) | **Choix 2 (Pierre)** : push Pub/Sub authentifié vers le service, acquittement après le travail, file de messages morts à 5 tentatives (TD3). | Pub/Sub → `team3-tx-push` (endpoint `/pubsub`, OIDC `team3-push`, lettre morte 5) ; IAM du service (seul `run.invoker`) ; Logs Explorer `delivery_attempt` ; tableau de montée en charge du compte rendu TD3. |
+| 10:00 – 13:30 | Nicolas (étape 7) | **Choix 3 (Nicolas)** : paralléliser la recherche par workers plutôt que par vCPU (TD5). Règle d'entrée appliquée une fois. | Cloud Run Jobs `team3-train` (exécutions) ; `docs/seance-5/acceleration.png` ; Vertex AI → Registre `fraud-scorer-team3`, versions 1 et 2 ; GCS `runs/team3/decisions/`. |
+| 13:30 – 17:30 | Richard (étapes 8 et 9) | **Choix 4 (Richard)** : valider le challenger sur les segments et en ombre, pas sur la moyenne, avant tout trafic (TD6 étape 2). Puis paliers et panne `next` en 1 min. | `docs/seance-6/validation.txt` (segments) ; Cloud Run `team3-scorer` → Révisions et trafic (tags `candidate`, `champion`) ; tableau de bord « TD6 team3 » sur le 20/11 13:20-13:45 ; log `Feature shape mismatch`. |
+| 17:30 – 19:00 | Pierre ou Léo (étape 10) | Ce que l'incident a changé : l'alerte en code et le test de fumée bloquant. | Monitoring → Alertes `team3-scorer-release` ; `infra/release.tf` ; GitHub Actions : run `release` en échec sur le test de fumée, puis en succès. |
 | 19:00 – 20:00 | Léo | Limites assumées (section 6) en 3 phrases, et ce qu'on ferait ensuite. | — |
 
 Transitions (une phrase chacune) :
@@ -235,6 +243,8 @@ Ce qui n'existe plus, et quoi montrer à la place :
 **TD4**
 - *Le filtre de partition a lu plus d'octets (7,0 Mo contre 6,2 Mo) : pourquoi ?* Toute la table est dans
   une seule partition (1er octobre) ; le filtre lit la colonne `TX_TS` en plus et n'écarte rien.
+  Aujourd'hui, la démo affiche 14,0 Mo contre 12,4 Mo : la table contient les deux rejeux du 16/11
+  (202 718 lignes, 100 859 transactions), voir la note du compte rendu TD4.
 - *Où est empêchée la fuite temporelle ?* À la lecture : le service ne somme que J−1 à J−14 ;
   `check.sql` renvoie 0 et 0.
 - *Pourquoi partitionner sur `TX_TS` et pas `publish_time` ?* Les transactions du 1er octobre ont été
@@ -274,7 +284,10 @@ Ce qui n'existe plus, et quoi montrer à la place :
 
 - Ne rien détruire : `team3-fraud-api`, `team3-scorer` (socle), `team3-tx-push`, `team3-tx-history`,
   dataset `team3`, Firestore `team3`, jobs `team3-train` et `team3-validate`, registre, alerte.
-- `gcloud auth login` et `gcloud auth application-default login` le matin même ; tester les deux `curl`.
+- `gcloud auth login`, `gcloud auth application-default login` et `gh auth status` le matin même.
+- Répétition complète : `DEMO_AUTO=1 scripts/demo.sh`. Le message empoisonné doit arriver dans la
+  file de messages morts en moins de 2 min (92 à 109 s lors des répétitions du 24/11).
+- Ne pas supprimer `team3-demo` ni `team3-demo-push` avant la soutenance.
 - `terraform -chdir=infra plan` → « No changes » (sinon, comprendre l'écart avant la soutenance).
 - Onglets ouverts dans l'ordre de la démo (section 4), déjà connectés au compte de l'école.
 - Logs Explorer : les trois filtres prêts, plage horaire réglée (16/11 18:00-18:15 ; 20/11 13:20-13:45).
